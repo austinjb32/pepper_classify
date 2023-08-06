@@ -51,4 +51,6 @@ flutter:
   assets:
     - assets/model.tflite
     - assets/labels.txt
+    - assets/label_1.txt
+    - assets/image_icon.png
     - assets/mobilenet_v1_1.0_224.tflite

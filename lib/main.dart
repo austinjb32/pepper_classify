@@ -18,6 +18,7 @@ class PepperClassificationApp extends StatefulWidget {
 
 class _PepperClassificationAppState extends State<PepperClassificationApp> {
   List<dynamic>? _output = [];
+  File? _pickedImage;
 
   @override
   void initState() {
@@ -28,8 +29,8 @@ class _PepperClassificationAppState extends State<PepperClassificationApp> {
   Future<void> loadModel() async {
     try {
       await Tflite.loadModel(
-        model: 'assets/mobilenet_v1_1.0_224.tflite',
-        labels: 'assets/labels.txt',
+        model: 'assets/model.tflite',
+        labels: 'assets/label_1.txt',
       );
     } on PlatformException {
       print('Failed to load model.');
@@ -39,23 +40,27 @@ class _PepperClassificationAppState extends State<PepperClassificationApp> {
   }
 
   Future<void> classifyImage(File image) async {
+    var output;
     try {
-      var output = await Tflite.runModelOnImage(
+      output = await Tflite.runModelOnImage(
         path: image.path,
-        numResults: 5, // Number of classification results to return
-        threshold: 0.1, // Classification threshold
+        numResults: 3,
+        threshold: 0.5,
       );
-      setState(() {
-        if (output != null) {
-          _output = output!.cast<Map<dynamic, dynamic>>().toList();
-          print(output);
-        } else {
-          _output = [];
-        }
-      });
     } on PlatformException {
       print('Failed to classify image.');
     }
+
+    if (!mounted) return;
+
+    setState(() {
+      if (output != null) {
+        _output = output!.cast<Map<dynamic, dynamic>>().toList();
+        print(output);
+      } else {
+        _output = [];
+      }
+    });
   }
 
   Future<void> pickImage(ImageSource source) async {
@@ -63,6 +68,9 @@ class _PepperClassificationAppState extends State<PepperClassificationApp> {
     if (pickedFile != null) {
       File image = File(pickedFile.path);
       classifyImage(image);
+      setState(() {
+        _pickedImage = image;
+      });
     }
   }
 
@@ -76,58 +84,73 @@ class _PepperClassificationAppState extends State<PepperClassificationApp> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.green,
         title: Text('Pepper Classification'),
       ),
       body: Column(
         children: <Widget>[
-          ElevatedButton(
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  return AlertDialog(
-                    title: Text('Select Image'),
-                    content: SingleChildScrollView(
-                      child: ListBody(
-                        children: <Widget>[
-                          GestureDetector(
-                            child: Text('Gallery'),
-                            onTap: () {
-                              pickImage(ImageSource.gallery);
-                              Navigator.of(context).pop();
-                            },
-                          ),
-                          SizedBox(height: 16),
-                          GestureDetector(
-                            child: Text('Camera'),
-                            onTap: () {
-                              pickImage(ImageSource.camera);
-                              Navigator.of(context).pop();
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
-            child: Text('Select Image'),
-          ),
+          if (_pickedImage != null)
+            Container(
+              height: 300,
+              width: double.infinity,
+              child: Image.file(
+                _pickedImage!,
+                fit: BoxFit.cover,
+              ),
+            ),
           Expanded(
             child: ListView.builder(
               itemCount: _output?.length ?? 0,
               itemBuilder: (BuildContext context, int index) {
                 final label = _output?[index]['label'] ?? '';
-                final confidence = _output?[index]['confidence'] ?? '';
-                return ListTile(
-                  title: Text('$label'),
-                  subtitle: Text('Confidence: $confidence'),
+                final confidence = _output?[index]['confidence'] * 100 ?? '';
+                print(_output);
+                return Center(
+                  child: ListTile(
+                    textColor: Colors.black87,
+                    title: Text('$label'),
+                    subtitle: Text('Confidence: $confidence%'),
+                  ),
                 );
               },
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.lightGreen,
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: Text('Select Image'),
+                content: SingleChildScrollView(
+                  child: ListBody(
+                    children: <Widget>[
+                      GestureDetector(
+                        child: Text('Gallery'),
+                        onTap: () {
+                          pickImage(ImageSource.gallery);
+                          Navigator.of(context).pop();
+                        },
+                      ),
+                      SizedBox(height: 24),
+                      GestureDetector(
+                        child: Text('Camera'),
+                        onTap: () {
+                          pickImage(ImageSource.camera);
+                          Navigator.of(context).pop();
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+        child: Icon(Icons.image),
       ),
     );
   }

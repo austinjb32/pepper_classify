@@ -1,0 +1,3 @@
+black_pepper_leaf_blight
+black_pepper_healthy
+black_pepper_yellow_mottle_virus
